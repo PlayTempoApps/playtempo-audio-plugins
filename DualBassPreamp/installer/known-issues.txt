@@ -1,0 +1,5 @@
+DualBassPreamp 1.0.0 Known Issues
+
+- The interface has a fixed size of 960x600 pixels.
+- An unsigned or unnotarized development build may require explicit approval
+  in the operating system's security settings.

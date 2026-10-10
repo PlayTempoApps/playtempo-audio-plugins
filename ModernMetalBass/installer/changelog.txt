@@ -1,0 +1,36 @@
+Modern Metal Bass Changelog
+
+2026-10-03 - Version 0.4.1
+- Enlarged the fixed interface from 960x600 to 1200x760.
+- Reorganized all 24 controls into six clearly labeled four-control sections.
+- Increased knob, label, live-value, section-heading, and helper-text sizes.
+- Removed visual overlap with the original background control field.
+
+2026-10-02 - Version 0.4.0
+- Added dedicated bass Overdrive and Distortion stages.
+- Added Drive/Gain, Tone, Blend, and Level controls for each stage.
+- Added five modern-metal Overdrive presets and five Distortion presets.
+- Expanded the interface to 24 controls while retaining the fixed 960x600 layout.
+
+2026-08-21 - Version 0.3.0
+
+- Rebuilt the main Modern Metal tone with stronger multiband distortion.
+- Applied the approved Midnight Precision bitmap interface.
+- Increased control-label and live-value readability.
+- Replaced recording-specific names and guidance with general product language.
+- Added Modern Metal, Deep Grind, Pick Attack, Tight Clean, and Wide Bite presets.
+- Added the Input Shape control for adapting different basses to the drive stages.
+
+2026-08-21 - Version 0.2.0
+
+- Renamed the product to Modern Metal Bass under the Play Tempo brand.
+- Added the selected Midnight Precision blue-steel interface.
+- Added adaptable input voicing for active and passive basses.
+- Three-band modern-metal bass processing.
+- Clean low-band control, driven mids, and controlled pick harmonics.
+- Input shaping, tone controls, attack, glue, exciter, cabinet, mix, and output controls.
+- Five starting presets and tooltips for all 16 controls.
+- Original fixed 960x600 vector interface.
+- macOS Universal Audio Unit v2 and VST3 build configuration.
+- Windows 64-bit VST3 build configuration.
+- Play Tempo manufacturer grouping.

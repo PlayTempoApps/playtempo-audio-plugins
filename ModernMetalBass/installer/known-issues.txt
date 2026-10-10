@@ -1,0 +1,6 @@
+Modern Metal Bass 0.4.1 Known Issues
+
+- This is a private listening-test build; final voicing still depends on player feedback.
+- The interface has a fixed size of 960x600 pixels.
+- The macOS test installer is not yet notarized for public distribution.
+- The Windows VST3 must be compiled and validated on a Windows x64 computer.

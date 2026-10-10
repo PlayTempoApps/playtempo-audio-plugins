@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+  <title>Modern Metal Bass 0.4.1 Listening Test</title>
+  <options customize="always" require-scripts="false"/>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <choices-outline>
+    <line choice="com.PlayTempo.ModernMetalBass.au.choice"/>
+    <line choice="com.PlayTempo.ModernMetalBass.vst3.choice"/>
+  </choices-outline>
+  <choice id="com.PlayTempo.ModernMetalBass.au.choice"
+          title="Audio Unit v2 (GarageBand and Logic Pro)"
+          description="Installs the universal Audio Unit for Intel and Apple Silicon Macs."
+          start_selected="true">
+    <pkg-ref id="com.PlayTempo.ModernMetalBass.au.pkg"/>
+  </choice>
+  <choice id="com.PlayTempo.ModernMetalBass.vst3.choice"
+          title="VST3 (compatible macOS DAWs)"
+          description="Installs the universal VST3 for Intel and Apple Silicon Macs."
+          start_selected="true">
+    <pkg-ref id="com.PlayTempo.ModernMetalBass.vst3.pkg"/>
+  </choice>
+  <pkg-ref id="com.PlayTempo.ModernMetalBass.au.pkg" version="0.4.1" onConclusion="none">ModernMetalBass-AU.pkg</pkg-ref>
+  <pkg-ref id="com.PlayTempo.ModernMetalBass.vst3.pkg" version="0.4.1" onConclusion="none">ModernMetalBass-VST3.pkg</pkg-ref>
+</installer-gui-script>

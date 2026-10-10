@@ -1,0 +1,12 @@
+DualBassPreamp Changelog
+
+2026-07-29 - Version 1.0.0
+
+- First public release.
+- Two switchable drive voices with independent Drive and Output controls.
+- Shared four-band active EQ.
+- Character Mix, Attack, and variable Cabinet controls.
+- Fixed 960x600 photorealistic Blue Steel interface.
+- macOS Audio Unit v2 and VST3 support.
+- Windows 64-bit VST3 support.
+- Play Tempo manufacturer grouping.

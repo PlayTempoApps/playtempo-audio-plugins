@@ -1,0 +1,159 @@
+name: Build Modern Metal Bass for Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IPLUG2_COMMIT: 69c1d4e787267f20ca60bde7824e710924444800
+  PLUGINVAL_VERSION: v1.0.4
+  PRODUCT_VERSION: 0.4.1
+  VST3_COMMIT: 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96
+
+defaults:
+  run:
+    working-directory: ModernMetalBass
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out Modern Metal Bass
+        uses: actions/checkout@v4
+
+      - name: Check out the pinned iPlug2 framework
+        shell: pwsh
+        run: |
+          git clone https://github.com/iPlug2/iPlug2.git iPlug2
+          git -C iPlug2 checkout $env:IPLUG2_COMMIT
+
+      - name: Download iPlug2 dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd iPlug2/Dependencies/IPlug
+          git clone https://github.com/steinbergmedia/vst3sdk.git VST3_SDK
+          git -C VST3_SDK checkout "$VST3_COMMIT"
+          git -C VST3_SDK submodule update --init --recursive
+          cd ..
+          ./download-prebuilt-libs.sh
+
+      - name: Download WebView2 SDK required by iPlug2 CMake
+        shell: pwsh
+        run: |
+          $webviewDir = Join-Path (Join-Path $env:GITHUB_WORKSPACE "ModernMetalBass") "build-ci/_deps/webview2"
+          $webviewZip = Join-Path $env:RUNNER_TEMP "webview2-1.0.2903.40.zip"
+          New-Item -ItemType Directory -Force -Path $webviewDir | Out-Null
+          Invoke-WebRequest `
+            -Uri "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.2903.40/microsoft.web.webview2.1.0.2903.40.nupkg" `
+            -OutFile $webviewZip `
+            -TimeoutSec 180
+          Expand-Archive -LiteralPath $webviewZip -DestinationPath $webviewDir -Force
+          if (!(Test-Path (Join-Path $webviewDir "build/native/include/WebView2.h"))) {
+            throw "WebView2 SDK headers were not extracted to the expected location"
+          }
+
+      - name: Configure the Windows x64 VST3 build
+        shell: pwsh
+        run: |
+          $iplug2Dir = (Join-Path (Join-Path $env:GITHUB_WORKSPACE "ModernMetalBass") "iPlug2").Replace('\', '/')
+          cmake -S . -B build-ci -G "Visual Studio 17 2022" -A x64 `
+            -DIPLUG2_DIR="$iplug2Dir" `
+            -DIPLUG_DEPLOY_PLUGINS=OFF
+
+      - name: Build the Release VST3
+        shell: pwsh
+        run: |
+          cmake --build build-ci --config Release --target ModernMetalBass-vst3 --parallel
+          $binary = "build-ci/out/ModernMetalBass.vst3/Contents/x86_64-win/ModernMetalBass.vst3"
+          if (!(Test-Path $binary)) { throw "Expected VST3 binary was not created: $binary" }
+
+      - name: Validate the VST3 with pluginval
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/Tracktion/pluginval/releases/download/$env:PLUGINVAL_VERSION/pluginval_Windows.zip" `
+            -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval -Force
+          $plugin = (Resolve-Path "build-ci/out/ModernMetalBass.vst3/Contents/x86_64-win/ModernMetalBass.vst3").Path
+          $logDir = Join-Path (Join-Path $env:GITHUB_WORKSPACE "ModernMetalBass") "validation-logs"
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $arguments = '--skip-gui-tests --validate-in-process --strictness-level 5 --output-dir "{0}" --output-filename pluginval-report.txt --validate "{1}"' -f $logDir, $plugin
+          $process = Start-Process -FilePath "./pluginval/pluginval.exe" -ArgumentList $arguments -Wait -PassThru `
+            -RedirectStandardOutput "$logDir/stdout.txt" -RedirectStandardError "$logDir/stderr.txt"
+          Write-Host "pluginval exit code: $($process.ExitCode)"
+          Get-ChildItem $logDir -File | ForEach-Object { Write-Host "--- $($_.Name) ---"; Get-Content $_.FullName }
+          $report = Join-Path $logDir "pluginval-report.txt"
+          if (!(Test-Path $report)) { throw "pluginval exited without a validation report; exit code $($process.ExitCode)" }
+          Copy-Item $report "pluginval-report.txt"
+          if ($process.ExitCode -ne 0 -or (Get-Content $report -Raw) -notmatch "SUCCESS") {
+            throw "pluginval validation failed; see the saved report and exit code"
+          }
+
+      - name: Retain Windows binary and validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-build-diagnostics
+          path: |
+            ModernMetalBass/build-ci/out/ModernMetalBass.vst3
+            ModernMetalBass/validation-logs/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Create the portable VST3 ZIP
+        shell: pwsh
+        run: |
+          $name = "PlayTempo-ModernMetalBass-$env:PRODUCT_VERSION-Windows-x64-Portable"
+          New-Item -ItemType Directory -Force -Path "dist/$name" | Out-Null
+          Copy-Item "build-ci/out/ModernMetalBass.vst3" "dist/$name/ModernMetalBass.vst3" -Recurse
+          Copy-Item "installer/readme-win-portable.txt" "dist/$name/INSTALL-WINDOWS.txt"
+          Copy-Item "LICENSE" "dist/$name/LICENSE.txt"
+          Copy-Item "THIRD_PARTY-iPlug2-LICENSE.txt" "dist/$name/"
+          Copy-Item "resources/fonts/LICENSE-Roboto.txt" "dist/$name/"
+          Copy-Item "licenses/VST3-SDK-MIT.txt" "dist/$name/"
+          Compress-Archive -Path "dist/$name/*" -DestinationPath "dist/$name.zip" -Force
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "C:/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --yes --no-progress
+          }
+          if (!(Test-Path $iscc)) { throw "Inno Setup compiler was not installed" }
+
+      - name: Create the Windows installer EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "build-win/installer-docs" | Out-Null
+          Copy-Item "build-ci/out/ModernMetalBass.vst3" "build-win/ModernMetalBass.vst3" -Recurse
+          Copy-Item "installer/readme-win.txt" "build-win/installer-docs/readme-win.txt"
+          Copy-Item "licenses/VST3-SDK-MIT.txt" "build-win/installer-docs/"
+          $iscc = "C:/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          if (!(Test-Path $iscc)) { throw "Inno Setup compiler was not found at $iscc" }
+          & $iscc "installer/ModernMetalBass.iss"
+          $installer = "release-windows/PlayTempo-ModernMetalBass-$env:PRODUCT_VERSION-Windows-x64.exe"
+          if (!(Test-Path $installer)) { throw "Expected installer was not created: $installer" }
+          Copy-Item $installer "dist/"
+
+      - name: Create SHA-256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content -Encoding ascii "dist/SHA256SUMS.txt"
+          Copy-Item pluginval-report.txt "dist/"
+
+      - name: Upload the Windows distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlayTempo-ModernMetalBass-${{ env.PRODUCT_VERSION }}-Windows-x64
+          path: ModernMetalBass/dist/*
+          if-no-files-found: error
+          retention-days: 14

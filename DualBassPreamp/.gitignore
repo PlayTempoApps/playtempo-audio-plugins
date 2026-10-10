@@ -1,0 +1,10 @@
+build*/
+release*/
+package*/
+iPlug2/
+*.pfx
+*.p12
+.env*
+.DS_Store
+**/xcuserdata/
+*.user
