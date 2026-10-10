@@ -36,9 +36,11 @@ jobs:
         run: |
           set -euo pipefail
           cd iPlug2/Dependencies/IPlug
-          git clone https://github.com/steinbergmedia/vst3sdk.git VST3_SDK
-          git -C VST3_SDK checkout "$VST3_COMMIT"
-          git -C VST3_SDK submodule update --init --recursive
+          sdk_stage="$RUNNER_TEMP/playtempo-vst3-sdk"
+          git clone https://github.com/steinbergmedia/vst3sdk.git "$sdk_stage"
+          git -C "$sdk_stage" checkout "$VST3_COMMIT"
+          git -C "$sdk_stage" submodule update --init --recursive
+          cp -R "$sdk_stage"/. VST3_SDK/
           cd ..
           ./download-prebuilt-libs.sh
 
